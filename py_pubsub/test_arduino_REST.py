@@ -18,6 +18,7 @@ from rclpy.node import Node
 from std_msgs.msg import String, Bool
 from geometry_msgs.msg import Twist
 import math
+from pySerialTransfer import pySerialTransfer as txfer
 
 import time
 import random
@@ -53,13 +54,21 @@ class ArduinoJoySubscriber(Node):
         self.subscription  # prevent unused variable warning
         self.robot_state_command = RobotStateCommand()
         self.robot_state_command.angle_increment_multiplier = 5
+        self.link = txfer.SerialTransfer('/dev/ttyACM0')
+        self.link.open()
+        time.sleep(2)
 
     def listener_callback(self, msg: Twist):
-        self.get_logger().info(f'Yaw: {msg.angular.z}')
         self.robot_state_command.increment_angle(msg.angular.z)
         self.robot_state_command.drive_power = msg.linear.x
         self.get_logger().info(f"Robot angle: {self.robot_state_command.turn_angle}")
         self.get_logger().info(f"Robot drive power: {self.robot_state_command.drive_power}")
+
+        send_size = 0
+        send_size = self.link.tx_obj(self.robot_state_command.turn_angle, send_size, val_type_override='f')
+        send_size = self.link.tx_obj(self.robot_state_command.drive_power, send_size, val_type_override='f')
+        self.link.send(send_size)
+
 
 
 def main(args=None):
